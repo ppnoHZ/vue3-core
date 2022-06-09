@@ -1,5 +1,5 @@
+// 存储副作用函数
 const bucket = new Set()
-
 
 // 被代理的对象
 const actualData = { text: 'vue3' }
@@ -9,7 +9,9 @@ const data = new Proxy(actualData, {
     get: (target, key) => {
         console.log('get', target, key);
         // 存储副作用函数
-        bucket.add(effect)
+        if (activeEffect) {
+            bucket.add(activeEffect)
+        }
         // 返回被代理对象的值
         return target[key]
     },
@@ -27,11 +29,21 @@ const data = new Proxy(actualData, {
 })
 
 
-function effect () {
-    document.body.innerHTML = data.text
+// 注册副作用函数
+
+
+let activeEffect
+
+function effect (fn) {
+    // 临时存储副作用函数，方便 get的时候添加到 bucket中
+    activeEffect = fn
+    // 然后立即执行副作用函数,如果整个副作用函数里的操作会触发对象的 get 就会被收集
+    fn()
 }
 
-effect()
+effect(() => {
+    document.body.innerHTML = data.text
+})
 
 setTimeout(() => {
     data.text = 'hello vue3'
