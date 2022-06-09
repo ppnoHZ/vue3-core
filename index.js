@@ -7,7 +7,7 @@ const actualData = { text: 'vue3' }
 // 代理对象
 const data = new Proxy(actualData, {
     get: (target, key) => {
-        console.log('get', target, key);
+        console.log('get [key]:%s,[value]:%s',key, target[key]);
         // 存储副作用函数
         if (activeEffect) {
             bucket.add(activeEffect)
@@ -31,7 +31,7 @@ const data = new Proxy(actualData, {
 
 // 注册副作用函数
 
-
+// 临时存储副作用函数
 let activeEffect
 
 function effect (fn) {
@@ -42,9 +42,15 @@ function effect (fn) {
 }
 
 effect(() => {
+    console.log('effect run')
+    // 这里只对text的值进行了读取,
     document.body.innerHTML = data.text
 })
 
 setTimeout(() => {
-    data.text = 'hello vue3'
+    // data.text = 'hello vue3'
+    // 当对其他非text属性进行设置的时候,还是会取出bucket 里的function进行执行
+    // 所以就会执行两遍：1是在40行，2是在55行
+    // 还是因为没区分到底是哪个key变化了
+    data.notExist = 'dddd'
 }, 1000);
