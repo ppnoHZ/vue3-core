@@ -1,10 +1,15 @@
+const bucket = new Set()
+
+
 // 被代理的对象
-const actualData = {}
+const actualData = { text: 'vue3' }
 
 // 代理对象
 const data = new Proxy(actualData, {
     get: (target, key) => {
         console.log('get', target, key);
+        // 存储副作用函数
+        bucket.add(effect)
         // 返回被代理对象的值
         return target[key]
     },
@@ -13,16 +18,21 @@ const data = new Proxy(actualData, {
         // 设置被代理对象的值
         target[key] = value
 
+        // 执行副作用函数
+        bucket.forEach(fn => fn())
         // 必须返回true 标识成功
         // return true
         return value
     }
 })
 
-// 设置值
-data.p = 'a' // set {} p a
-// 访问整个对象,不会触发get
-console.log(data) // Proxy {p: 'a'}
-// 触发get
-console.log(data.p) // get {p: 'a'} p
-// a
+
+function effect () {
+    document.body.innerHTML = data.text
+}
+
+effect()
+
+setTimeout(() => {
+    data.text = 'hello vue3'
+}, 1000);
