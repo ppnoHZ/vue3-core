@@ -1,29 +1,62 @@
+// 区分object的key来存储和执行effect
+// 按照key收集依赖,防止设置一个不存在的属性导致依赖的执行
+
+//  target      --WeakMap
+//      key    --Map
+//         fn   --Set
+//         fn1   --Set
+//      key1
+//         fn
+
 // 存储副作用函数
-const bucket = new Set()
+// WeakMap 的key是弱引用,会被垃圾回收
+const bucket = new WeakMap()
+
 
 // 被代理的对象
-const actualData = { text: 'vue3' }
+const actualData = { ok: true, text: 'vue3' }
 
+
+function track (target, key) {
+    if (!activeEffect) return
+    // 根据当前对象获取依赖
+    let depsMap = bucket.get(target)
+    // 如果没有就创建一个空的
+    if (!depsMap) {
+        bucket.set(target, (depsMap = new Map()))
+    }
+
+    // 根据当前访问对象的key 获取属性的依赖
+    let deps = depsMap.get(key)
+    // 没有找到就创建一个空的
+    if (!deps) {
+        depsMap.set(key, (deps = new Set()))
+    }
+    // 将依赖放进Set里
+    deps.add(activeEffect)
+}
+
+function trigger (target, key) {
+    const depsMap = bucket.get(target)
+    if (!depsMap) return
+
+    //  根据当前key 取除依赖并执行
+    const effects = depsMap.get(key)
+    effects && effects.forEach(fn => fn())
+}
 // 代理对象
 const data = new Proxy(actualData, {
     get: (target, key) => {
-        console.log('get [key]:%s,[value]:%s',key, target[key]);
-        // 存储副作用函数
-        if (activeEffect) {
-            bucket.add(activeEffect)
-        }
+        console.log('%c【get】 [key]:%s,[value]:%s', 'color:red', key, target[key]);
+        track(target, key)
         // 返回被代理对象的值
         return target[key]
     },
     set: (target, key, value) => {
-        console.log('set', target, key, value);
+        console.log('%c【set】', 'color:green', target, key, value);
         // 设置被代理对象的值
         target[key] = value
-
-        // 执行副作用函数
-        bucket.forEach(fn => fn())
-        // 必须返回true 标识成功
-        // return true
+        trigger(target, key)
         return value
     }
 })
@@ -41,16 +74,20 @@ function effect (fn) {
     fn()
 }
 
+// 注册一个副作用函数
 effect(() => {
     console.log('effect run')
-    // 这里只对text的值进行了读取,
-    document.body.innerHTML = data.text
+    // 这里只对text的值进行了读取
+    document.body.innerHTML = data.ok ? data.text : 'not'
 })
 
 setTimeout(() => {
     // data.text = 'hello vue3'
     // 当对其他非text属性进行设置的时候,还是会取出bucket 里的function进行执行
     // 所以就会执行两遍：1是在40行，2是在55行
-    // 还是因为没区分到底是哪个key变化了
+    // 主要是因为没区分到底是哪个key变化了
     data.notExist = 'dddd'
+    // 这里的 notExist 没有依赖的 effect 所以不会执行两次
+    data.text = 'vue3 effect'
+    console.log('xxx',bucket)
 }, 1000);
