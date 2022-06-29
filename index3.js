@@ -1,5 +1,4 @@
 // 区分object的key来存储和执行effect
-// 按照key收集依赖,防止设置一个不存在的属性导致依赖的执行
 
 //  target      --WeakMap
 //      key    --Map
@@ -68,22 +67,16 @@ const data = new Proxy(actualData, {
 let activeEffect
 
 function effect (fn) {
-    const effectFn = () => {
-        // 临时存储副作用函数，方便 get的时候添加到 bucket中
-        activeEffect = effectFn
-        // 然后立即执行副作用函数,如果整个副作用函数里的操作会触发对象的 get 就会被收集
-        fn()
-    }
-    effectFn.deps = []
-
-    effectFn()
-
+    // 临时存储副作用函数，方便 get的时候添加到 bucket中
+    activeEffect = fn
+    // 然后立即执行副作用函数,如果整个副作用函数里的操作会触发对象的 get 就会被收集
+    fn()
 }
 
 // 注册一个副作用函数
 effect(() => {
     console.log('effect run')
-    // 这里只对text的值进行了读取
+    // 这里只对text的值进行了读取,
     document.body.innerHTML = data.ok ? data.text : 'not'
 })
 
@@ -93,7 +86,7 @@ setTimeout(() => {
     // 所以就会执行两遍：1是在40行，2是在55行
     // 主要是因为没区分到底是哪个key变化了
     data.notExist = 'dddd'
-    // 这里的 notExist 没有依赖的 effect 所以不会执行两次
+    // 这里的notExist 没有依赖的 effect 所以不会执行两次
     data.text = 'vue3 effect'
-    console.log('xxx', bucket)
+    console.log('xxx',bucket)
 }, 1000);

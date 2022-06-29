@@ -1,3 +1,10 @@
+// 分支情况处理
+// obj.ok?obj.text:'abc'
+
+// 当 obj.ok 为true时, ok和text都会收集到依赖
+// 当 obj.ok 变为false的时候, text的依赖还会存在,当改变obj.text的值之后effect还是会执行
+
+
 // 区分object的key来存储和执行effect
 // 按照key收集依赖,防止设置一个不存在的属性导致依赖的执行
 
@@ -68,16 +75,10 @@ const data = new Proxy(actualData, {
 let activeEffect
 
 function effect (fn) {
-    const effectFn = () => {
-        // 临时存储副作用函数，方便 get的时候添加到 bucket中
-        activeEffect = effectFn
-        // 然后立即执行副作用函数,如果整个副作用函数里的操作会触发对象的 get 就会被收集
-        fn()
-    }
-    effectFn.deps = []
-
-    effectFn()
-
+    // 临时存储副作用函数，方便 get的时候添加到 bucket中
+    activeEffect = fn
+    // 然后立即执行副作用函数,如果整个副作用函数里的操作会触发对象的 get 就会被收集
+    fn()
 }
 
 // 注册一个副作用函数
@@ -95,5 +96,5 @@ setTimeout(() => {
     data.notExist = 'dddd'
     // 这里的 notExist 没有依赖的 effect 所以不会执行两次
     data.text = 'vue3 effect'
-    console.log('xxx', bucket)
+    console.log('xxx',bucket)
 }, 1000);
